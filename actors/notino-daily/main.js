@@ -136,9 +136,11 @@ function handleProductUsingWindowObject(document, country) {
       };
       product.img = document.querySelector("#pd-image-main")?.getAttribute("src");
       product.category = category;
-      const currentPrice = variantGeneralData.price.value;
-      const originalPrice = variantGeneralData.originalPrice !== null ? variantGeneralData.originalPrice.value : null;
-      product.discounted = originalPrice !== null ? currentPrice < originalPrice : false;
+      const voucherDiscountedPrice = variantGeneralData.attributes?.VoucherDiscount?.discountedPrice;
+      const currentPrice = voucherDiscountedPrice ?? variantGeneralData.price.value;
+      const recentMinPrice = variantGeneralData.recentMinPrice?.value;
+      const originalPrice = (variantGeneralData.originalPrice !== null ? variantGeneralData.originalPrice.value : null) ?? recentMinPrice
+      product.discounted = originalPrice !== null ? currentPrice < originalPrice : false; 
       product.currentPrice = currentPrice;
       product.originalPrice = product.discounted ? originalPrice : null;
       product.currency = variantGeneralData.price && variantGeneralData.price.currency;
@@ -189,7 +191,8 @@ async function main() {
     proxyGroups,
     maxRequestRetries,
     country = Country.CZ,
-    type = ActorType.Full
+    type = ActorType.Full,
+    testUrls,
   } = await getInput();
 
   if (development || debug) {
@@ -270,6 +273,7 @@ async function main() {
           break;
         case Labels.DETAIL_PAGE: {
           {
+            // TODO: Does this work?
             if (document.querySelector("div#pdVariantsTile")) {
               const productVariants = document.querySelectorAll("div#pdVariantsTile li a").map(a => {
                 const url = new URL(request.url);
@@ -285,9 +289,11 @@ async function main() {
 
             let products = [];
             if (document.querySelector("#__APOLLO_STATE__")?.innerHTML) {
+              // TODO: Seems like this is the only way
               products = handleProductUsingWindowObject(document, country);
               stats.add("JSON", products.length);
             } else if (document.querySelector('a[href="#variants"]')) {
+              // TODO: DOes this work?
               products = handleProductUsingHTML(document, request);
               stats.add("HTML", products.length);
             } else {
@@ -360,7 +366,7 @@ async function main() {
         userData: { label: Labels.HOME_PAGE }
       });
   }
-  await crawler.run(startingRequests);
+  await crawler.run(testUrls ?? startingRequests);
 
   log.info("Crawling finished.");
 
